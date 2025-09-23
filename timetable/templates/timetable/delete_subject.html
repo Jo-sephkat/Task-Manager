@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="form-container">
+    <h2>Delete Subject</h2>
+    
+    <p>Are you sure you want to delete the subject "{{ subject.name }}"?</p>
+    <p class="warning">This will also delete all classes associated with this subject!</p>
+    
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn-danger">Yes, Delete</button>
+        <a href="{% url 'timetable:dashboard' %}">Cancel</a>
+    </form>
+</div>
+{% endblock %}
+
+

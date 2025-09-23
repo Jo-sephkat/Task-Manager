@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="form-container">
+    <h2>{% if form.instance.pk %}Edit{% else %}Add{% endif %} Subject</h2>
+    <form method="post" id="subject-form">
+        {% csrf_token %}
+        
+        <div class="color-picker-container">
+            <div class="color-preview" id="color-preview"></div>
+            {{ form.color }}
+            <button type="button" id="random-color-btn">Random Color</button>
+        </div>
+        
+        {{ form.as_p }}
+        
+        <button type="submit">Save Subject</button>
+        <a href="{% url 'timetable:dashboard' %}">Cancel</a>
+    </form>
+</div>
+
+<script src="{% static 'timetable/js/edit_subject.js' %}"></script>
+{% endblock %}
+

@@ -1,0 +1,82 @@
+/* Color palette for subjects */
+.subject-color-1 { background-color: #FF9AA2; }
+.subject-color-2 { background-color: #FFB7B2; }
+.subject-color-3 { background-color: #FFDAC1; }
+.subject-color-4 { background-color: #E2F0CB; }
+.subject-color-5 { background-color: #B5EAD7; }
+.subject-color-6 { background-color: #C7CEEA; }
+.subject-color-7 { background-color: #F8B195; }
+.subject-color-8 { background-color: #F67280; }
+.subject-color-9 { background-color: #6C5B7B; }
+.subject-color-10 { background-color: #355C7D; }
+
+/* Timetable grid colors */
+.timetable-grid {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.timetable-grid th, .timetable-grid td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+}
+
+.timetable-grid th {
+    background-color: #4a6fa5;
+    color: white;
+    padding: 12px;
+}
+
+.timetable-grid tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
+
+.timetable-grid tr:hover {
+    background-color: #ddd;
+}
+
+.time-cell {
+    background-color: #f5f5f5;
+    font-weight: bold;
+}
+
+.class-cell {
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.class-cell:hover {
+    transform: scale(1.02);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    z-index: 10;
+}
+
+.class-info {
+    padding: 5px;
+    color: #333;
+    border-radius: 4px;
+}
+
+.class-subject {
+    font-weight: bold;
+    margin-bottom: 3px;
+}
+
+.class-details {
+    font-size: 0.85em;
+    opacity: 0.9;
+}
+
+.color-preview {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    margin-right: 8px;
+    vertical-align: middle;
+    border: 1px solid #ddd;
+}
+
+

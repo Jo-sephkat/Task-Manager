@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="form-container">
+    <h2>{% if editing %}Edit{% else %}Add{% endif %} Class for {{ subject.name }}</h2>
+    <form method="post" id="class-form">
+        {% csrf_token %}
+        
+        {{ form.as_p }}
+        
+        <button type="submit">Save Class</button>
+        <a href="{% url 'timetable:dashboard' %}">Cancel</a>
+    </form>
+</div>
+
+<script src="{% static 'timetable/js/add_class.js' %}"></script>
+{% endblock %}
+
+

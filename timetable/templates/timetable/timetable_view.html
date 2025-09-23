@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="timetable-container">
+    <h2>Your Weekly Timetable</h2>
+    
+    <div class="timetable-controls">
+        <input type="text" id="timetable-filter" class="timetable-filter" placeholder="Filter by subject, instructor, or location...">
+        
+        <div class="timetable-actions">
+            <button id="export-pdf">Export PDF</button>
+            <button id="export-image">Export Image</button>
+            <button id="print-timetable">Print</button>
+        </div>
+    </div>
+    
+    <div id="timetable-container" data-classes='{{ classes_json|safe }}'></div>
+</div>
+
+<script src="{% static 'timetable/js/partials/timetable_grid.js' %}"></script>
+<script src="{% static 'timetable/js/timetable_view.js' %}"></script>
+{% endblock %}
+
+

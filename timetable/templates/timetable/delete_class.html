@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="form-container">
+    <h2>Delete Class</h2>
+    
+    <p>Are you sure you want to delete this class?</p>
+    <p><strong>Subject:</strong> {{ class_obj.subject.name }}</p>
+    <p><strong>Day:</strong> {{ class_obj.get_day_display }}</p>
+    <p><strong>Time:</strong> {{ class_obj.start_time }} - {{ class_obj.end_time }}</p>
+    
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn-danger">Yes, Delete</button>
+        <a href="{% url 'timetable:dashboard' %}">Cancel</a>
+    </form>
+</div>
+{% endblock %}
+
+

@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="form-container">
+    <h2>{% if editing %}Edit{% else %}Add{% endif %} Subject</h2>
+    
+    {% if messages %}
+    <div class="messages">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    <form method="post" id="subject-form">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="id_name">Subject Name:</label>
+            {{ form.name }}
+            {% if form.name.errors %}
+            <div class="error-message">
+                {{ form.name.errors }}
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group">
+            <label for="id_code">Subject Code (optional):</label>
+            {{ form.code }}
+            {% if form.code.errors %}
+            <div class="error-message">
+                {{ form.code.errors }}
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="form-group color-picker-container">
+            <label for="id_color">Subject Color:</label>
+            <div class="color-picker-wrapper">
+                <div class="color-preview" id="color-preview"></div>
+                {{ form.color }}
+                <button type="button" id="random-color-btn" class="btn-secondary">Random Color</button>
+            </div>
+            {% if form.color.errors %}
+            <div class="error-message">
+                {{ form.color.errors }}
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn-primary">
+                {% if editing %}Update{% else %}Create{% endif %} Subject
+            </button>
+            <a href="{% url 'timetable:dashboard' %}" class="btn-cancel">Cancel</a>
+            
+            {% if editing %}
+            <a href="{% url 'timetable:delete_subject' subject.id %}" class="btn-danger" 
+               onclick="return confirm('Are you sure you want to delete this subject? All associated classes will also be deleted.')">
+                Delete Subject
+            </a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<script src="{% static 'timetable/js/edit_subject.js' %}"></script>
+{% endblock %}
+
+
