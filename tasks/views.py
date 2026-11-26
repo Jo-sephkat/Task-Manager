@@ -54,38 +54,29 @@ def logout_view(request):
 def dashboard_view(request):
     """
     Personalized Live Dashboard:
-    - Every user sees only their assigned and supervised tasks by default.
-    - User can switch to 'team' mode to see overall team progress if desired.
-    - All metrics (Efficiency, Clusters, Velocity, Schedule) compute live for that user.
+    - User sees strictly tasks concerning them (assigned to them or supervised by them).
+    - If a user signs in for the first time, all counts and lists are 0.
     """
     org = Organization.objects.first()
     if not org:
         org = Organization.objects.create(name="Alpha Corp", division="01 Division", department="01 Department", team="A Team")
 
-    filter_mode = request.GET.get('filter', 'mine')
-
-    # Base queries
+    # Strictly user's tasks
     user_tasks = Task.objects.prefetch_related('subtasks', 'assignees', 'comments').filter(
         Q(assignees=request.user) | Q(supervisor=request.user)
     ).distinct()
-    team_tasks = Task.objects.prefetch_related('subtasks', 'assignees', 'comments').all()
 
-    # Active dataset based on scope
-    if filter_mode == 'team':
-        tasks = team_tasks
-    else:
-        tasks = user_tasks
+    tasks = user_tasks
 
-    # 4-column Kanban groupings
+    # 4-column groupings
     tasks_draft = tasks.filter(status=Task.Status.DRAFT)
     tasks_in_progress = tasks.filter(status=Task.Status.IN_PROGRESS)
     tasks_editing = tasks.filter(status=Task.Status.EDITING)
     tasks_done = tasks.filter(status=Task.Status.DONE)
 
-    total_tasks_count = team_tasks.count()
     my_tasks_count = user_tasks.count()
 
-    # Workstream Cluster Metrics (computed dynamically from the active user's tasks)
+    # Workstream Cluster Metrics (computed dynamically from the active user's tasks only)
     tracks = [
         {'code': 'A', 'title': 'Design & UX', 'color': '#3B82F6'},
         {'code': 'B', 'title': 'Core Backend & API', 'color': '#8B5CF6'},
@@ -93,13 +84,12 @@ def dashboard_view(request):
         {'code': 'D', 'title': 'DevOps & Quality', 'color': '#F59E0B'},
     ]
     track_clusters = []
-    active_scope_count = tasks.count()
     for tr in tracks:
         tr_tasks = tasks.filter(track_code=tr['code'])
         cnt = tr_tasks.count()
         done_cnt = tr_tasks.filter(status=Task.Status.DONE).count()
         progress = int(tr_tasks.aggregate(Avg('progress'))['progress__avg'] or 0)
-        pct_of_total = int((cnt / active_scope_count) * 100) if active_scope_count > 0 else 0
+        pct_of_total = int((cnt / my_tasks_count) * 100) if my_tasks_count > 0 else 0
 
         track_clusters.append({
             'code': tr['code'],
@@ -114,8 +104,6 @@ def dashboard_view(request):
     # Time slots for the active user for today
     today = timezone.now().date()
     time_slots = TimeSlot.objects.filter(user=request.user, date=today)
-    if not time_slots.exists():
-        time_slots = TimeSlot.objects.filter(user=request.user)[:4]
 
     # Live Efficiency calculations for active user
     efficiency_stats = []
@@ -140,7 +128,7 @@ def dashboard_view(request):
 
     for tr in tracks:
         cnt = track_counts[tr['code']]
-        height_pct = max(20, int((cnt / max_completed) * 90)) if max_completed > 0 else 20
+        height_pct = max(20, int((cnt / max_completed) * 90)) if my_tasks_count > 0 and max_completed > 0 else 20
         completed_stats.append({
             'label': f"Track {tr['code']}",
             'value': cnt,
@@ -157,9 +145,7 @@ def dashboard_view(request):
         'tasks_in_progress': tasks_in_progress,
         'tasks_editing': tasks_editing,
         'tasks_done': tasks_done,
-        'total_tasks_count': total_tasks_count,
         'my_tasks_count': my_tasks_count,
-        'filter_mode': filter_mode,
         'track_clusters': track_clusters,
         'time_slots': time_slots,
         'efficiency_stats': efficiency_stats,
@@ -172,20 +158,23 @@ def dashboard_view(request):
 
 @login_required(login_url='tasks:login')
 def task_list_view(request):
-    """Personalized Task Directory."""
+    """
+    Personalized Task Directory:
+    Only displays tasks assigned to or supervised by the logged-in user.
+    """
     status_filter = request.GET.get('status')
     priority_filter = request.GET.get('priority')
-    assignee_filter = request.GET.get('assignee')
     search_query = request.GET.get('q', '').strip()
 
-    tasks = Task.objects.prefetch_related('subtasks', 'assignees').all()
+    # Strictly user tasks
+    tasks = Task.objects.prefetch_related('subtasks', 'assignees').filter(
+        Q(assignees=request.user) | Q(supervisor=request.user)
+    ).distinct()
 
     if status_filter:
         tasks = tasks.filter(status=status_filter)
     if priority_filter:
         tasks = tasks.filter(priority=priority_filter)
-    if assignee_filter:
-        tasks = tasks.filter(assignees__id=assignee_filter)
     if search_query:
         tasks = tasks.filter(Q(title__icontains=search_query) | Q(description__icontains=search_query))
 
@@ -195,7 +184,6 @@ def task_list_view(request):
         'tasks': tasks,
         'status_filter': status_filter,
         'priority_filter': priority_filter,
-        'assignee_filter': assignee_filter,
         'search_query': search_query,
         'users': users,
         'active_menu': 'tasks',
@@ -206,6 +194,7 @@ def task_list_view(request):
 @login_required(login_url='tasks:login')
 def task_detail_view(request, task_id):
     """Task Detail & Edit screen."""
+    # Allow opening tasks concerning the user or newly created by them
     task = get_object_or_404(Task.objects.prefetch_related('subtasks', 'comments__author', 'assignees'), id=task_id)
     all_users = User.objects.all()
 
@@ -260,8 +249,14 @@ def add_comment(request, task_id):
 
 @login_required(login_url='tasks:login')
 def planning_view(request):
-    """Planning & Roadmap Page."""
-    tasks = Task.objects.prefetch_related('subtasks', 'assignees').all().order_by('track_code', 'due_date')
+    """
+    Planning & Roadmap Page:
+    Strictly scoped to tasks assigned to or supervised by the logged-in user.
+    """
+    tasks = Task.objects.prefetch_related('subtasks', 'assignees').filter(
+        Q(assignees=request.user) | Q(supervisor=request.user)
+    ).distinct().order_by('track_code', 'due_date')
+
     today = timezone.now().date()
     timeline_days = [today + timedelta(days=i) for i in range(10)]
 
@@ -303,7 +298,7 @@ def planning_view(request):
 @login_required(login_url='tasks:login')
 @require_POST
 def plan_milestone(request):
-    """Create a scheduled milestone/task directly from Planning page."""
+    """Create a scheduled milestone/task directly from Planning page assigned to active user."""
     title = request.POST.get('title', '').strip()
     if title:
         track_code = request.POST.get('track_code', 'A').upper()
@@ -363,9 +358,10 @@ def update_task_schedule(request, task_id):
 
 @login_required(login_url='tasks:login')
 def analytics_view(request):
-    """Personalized Analytics & Performance Reports."""
-    tasks = Task.objects.prefetch_related('subtasks').all()
-    user_tasks = tasks.filter(assignees=request.user)
+    """Personalized Analytics & Performance Reports for Active User."""
+    tasks = Task.objects.prefetch_related('subtasks').filter(
+        Q(assignees=request.user) | Q(supervisor=request.user)
+    ).distinct()
 
     total_tasks = tasks.count()
     done_tasks = tasks.filter(status=Task.Status.DONE).count()
@@ -385,10 +381,10 @@ def analytics_view(request):
 
     track_performance = []
     track_meta = {
-        'A': {'name': 'UX & Frontend', 'lead': 'Design Team'},
-        'B': {'name': 'API & Core Logic', 'lead': 'Backend Team'},
-        'C': {'name': 'Database Optimization', 'lead': 'Infra Team'},
-        'D': {'name': 'CI/CD & DevOps', 'lead': 'DevOps Team'},
+        'A': {'name': 'UX & Frontend', 'lead': request.user.get_full_name() or request.user.username},
+        'B': {'name': 'API & Core Logic', 'lead': request.user.get_full_name() or request.user.username},
+        'C': {'name': 'Database Optimization', 'lead': request.user.get_full_name() or request.user.username},
+        'D': {'name': 'CI/CD & DevOps', 'lead': request.user.get_full_name() or request.user.username},
     }
     for code, meta in track_meta.items():
         tr_tasks = tasks.filter(track_code=code)
@@ -396,8 +392,8 @@ def analytics_view(request):
         tr_done = tr_tasks.filter(status=Task.Status.DONE).count()
         tr_progress = int(tr_tasks.aggregate(Avg('progress'))['progress__avg'] or 0)
         
-        total_subs = SubTask.objects.filter(task__track_code=code).count()
-        completed_subs = SubTask.objects.filter(task__track_code=code, is_completed=True).count()
+        total_subs = SubTask.objects.filter(task__in=tr_tasks).count()
+        completed_subs = SubTask.objects.filter(task__in=tr_tasks, is_completed=True).count()
 
         track_performance.append({
             'code': code,
@@ -415,7 +411,6 @@ def analytics_view(request):
 
     context = {
         'total_tasks': total_tasks,
-        'user_tasks_count': user_tasks.count(),
         'done_tasks': done_tasks,
         'in_progress_tasks': in_progress_tasks,
         'completion_rate': completion_rate,

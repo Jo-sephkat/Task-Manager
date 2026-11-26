@@ -16,20 +16,6 @@
         
         <!-- Action Buttons aligned on the right -->
         <div class="flex flex-wrap items-center gap-2.5">
-            <!-- Filter: All Tasks vs My Tasks -->
-            <div class="bg-white border border-slate-200 p-1 rounded-xl shadow-sm flex items-center gap-1">
-                <a href="?filter=all" 
-                   class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 {% if filter_mode != 'mine' %}bg-blue-50 text-blue-600 shadow-xs{% else %}text-slate-500 hover:text-slate-800{% endif %}">
-                    <i data-lucide="users" class="w-3.5 h-3.5"></i>
-                    <span>All Tasks ({{ total_tasks_count }})</span>
-                </a>
-                <a href="?filter=mine" 
-                   class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 {% if filter_mode == 'mine' %}bg-blue-50 text-blue-600 shadow-xs{% else %}text-slate-500 hover:text-slate-800{% endif %}">
-                    <i data-lucide="user-check" class="w-3.5 h-3.5"></i>
-                    <span>Assigned to Me ({{ my_tasks_count }})</span>
-                </a>
-            </div>
-
             <!-- View Mode Switcher: Table List vs Kanban Board -->
             <div class="bg-white border border-slate-200 p-1 rounded-xl shadow-sm flex items-center gap-1">
                 <button type="button" 
@@ -56,7 +42,7 @@
         </div>
     </div>
 
-    <!-- TOP ROW: Fixed-Height High-Level Workload Health Bar (Never grows, whether 5 or 5,000 tasks) -->
+    <!-- TOP ROW: Fixed-Height Workload Summary (Zero when account is new) -->
     <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
         
         <!-- Left (8 cols): Fixed Single-Card Workstream Health Summary -->
@@ -64,11 +50,11 @@
             <div class="space-y-4">
                 <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                     <div>
-                        <h2 class="text-sm font-bold text-slate-800">Project Workstream Distribution</h2>
-                        <p class="text-xs text-slate-400">Total volume and completion across 4 primary workstreams</p>
+                        <h2 class="text-sm font-bold text-slate-800">Your Workstream Distribution</h2>
+                        <p class="text-xs text-slate-400">Total volume and completion across your functional deliverables</p>
                     </div>
                     <span class="text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-full">
-                        {{ total_tasks_count }} Tasks Total
+                        {{ my_tasks_count }} Tasks Assigned to You
                     </span>
                 </div>
 
@@ -76,16 +62,20 @@
                 <div class="space-y-1.5">
                     <div class="flex items-center justify-between text-xs font-semibold text-slate-500">
                         <span>Workstream Proportions</span>
-                        <span>100% Workload</span>
+                        <span>{% if my_tasks_count > 0 %}100% Workload{% else %}No active workload{% endif %}</span>
                     </div>
                     <div class="h-3 w-full bg-slate-100 rounded-full flex overflow-hidden">
-                        {% for cluster in track_clusters %}
-                            {% if cluster.total > 0 %}
-                                <div style="width: {{ cluster.pct_of_total }}%; background-color: {{ cluster.color }};"
-                                     class="transition-all duration-300"
-                                     title="{{ cluster.title }}: {{ cluster.total }} tasks ({{ cluster.pct_of_total }}%)"></div>
-                            {% endif %}
-                        {% endfor %}
+                        {% if my_tasks_count > 0 %}
+                            {% for cluster in track_clusters %}
+                                {% if cluster.total > 0 %}
+                                    <div style="width: {{ cluster.pct_of_total }}%; background-color: {{ cluster.color }};"
+                                         class="transition-all duration-300"
+                                         title="{{ cluster.title }}: {{ cluster.total }} tasks ({{ cluster.pct_of_total }}%)"></div>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <div class="w-full bg-slate-200/70 h-full"></div>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -111,13 +101,13 @@
             </div>
         </div>
 
-        <!-- Right (4 cols): Plan / Today's Schedule Card (Fixed Height Alongside) -->
+        <!-- Right (4 cols): Plan / Today's Schedule Card -->
         <div class="xl:col-span-4 bg-white rounded-3xl p-6 shadow-card border border-slate-100 flex flex-col justify-between">
             <div>
                 <div class="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
                     <div>
                         <h3 class="text-sm font-bold text-slate-800 tracking-tight">Today's Focus</h3>
-                        <p class="text-[11px] text-slate-400">Scheduled time blocks</p>
+                        <p class="text-[11px] text-slate-400">Your scheduled focus sessions</p>
                     </div>
                     <span class="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">Schedule</span>
                 </div>
@@ -133,7 +123,10 @@
                             </span>
                         </div>
                     {% empty %}
-                        <p class="text-xs text-slate-400 text-center py-3">No blocks scheduled today.</p>
+                        <div class="py-6 text-center">
+                            <i data-lucide="calendar" class="w-6 h-6 text-slate-300 mx-auto mb-1.5"></i>
+                            <p class="text-xs font-medium text-slate-400">No sessions scheduled for you today.</p>
+                        </div>
                     {% endfor %}
                 </div>
             </div>
@@ -146,23 +139,21 @@
 
     </div>
 
-    <!-- MAIN TASK SECTION: Handles 50 to 5,000+ Tasks Gracefully with Sticky Table or Board -->
+    <!-- MAIN TASK SECTION: Shows only user's tasks -->
     <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         
         <!-- Left (8 cols): Scalable Task Table / Kanban View -->
         <div class="xl:col-span-8">
 
-            <!-- 1. CLEAN ENTERPRISE TABLE VIEW (Scrollable, fixed header, compact) -->
+            <!-- 1. CLEAN ENTERPRISE TABLE VIEW -->
             <div id="dashboard-table-view" class="bg-white rounded-3xl p-6 shadow-card border border-slate-100 space-y-4">
                 <div class="flex items-center justify-between pb-2 border-b border-slate-100">
                     <div>
-                        <h2 class="text-base font-bold text-slate-800">
-                            {% if filter_mode == 'mine' %}Tasks Assigned to You{% else %}Task Directory{% endif %}
-                        </h2>
+                        <h2 class="text-base font-bold text-slate-800">Tasks Assigned to You</h2>
                         <p class="text-xs text-slate-400">Click any row to view complete details, tick checklist items, or add notes</p>
                     </div>
                     <span class="text-xs font-bold text-slate-500 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
-                        Showing {{ tasks.count }} Tasks
+                        {{ tasks.count }} Tasks
                     </span>
                 </div>
 
@@ -228,8 +219,10 @@
                                 </tr>
                             {% empty %}
                                 <tr>
-                                    <td colspan="7" class="py-8 text-center text-slate-400 text-xs">
-                                        No tasks found for this view.
+                                    <td colspan="7" class="py-12 text-center text-slate-400 text-xs">
+                                        <i data-lucide="inbox" class="w-8 h-8 text-slate-300 mx-auto mb-2"></i>
+                                        <p class="font-semibold text-slate-600">You have no assigned tasks yet.</p>
+                                        <p class="text-[11px] text-slate-400 mt-0.5">Click "+ Add Task" to create your first deliverable.</p>
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -238,7 +231,7 @@
                 </div>
             </div>
 
-            <!-- 2. KANBAN BOARD VIEW (Optionally toggleable) -->
+            <!-- 2. KANBAN BOARD VIEW -->
             <div id="dashboard-board-view" class="hidden">
                 <div class="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-4">
                     <!-- DRAFT -->
@@ -319,7 +312,7 @@
             <!-- Efficiency Circular Metrics (A, B, C, D) -->
             <div class="bg-white rounded-3xl p-6 shadow-card border border-slate-100">
                 <div class="flex items-center justify-between mb-5">
-                    <h3 class="text-sm font-bold text-slate-800 tracking-tight">Efficiency</h3>
+                    <h3 class="text-sm font-bold text-slate-800 tracking-tight">Your Efficiency</h3>
                     <span class="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">Real-time</span>
                 </div>
                 <div class="grid grid-cols-4 gap-2 text-center">
@@ -345,7 +338,7 @@
             <!-- Completed Tasks Real Velocity Bar Chart -->
             <div class="bg-white rounded-3xl p-6 shadow-card border border-slate-100">
                 <div class="flex items-center justify-between mb-6">
-                    <h3 class="text-sm font-bold text-slate-800 tracking-tight">Completed tasks</h3>
+                    <h3 class="text-sm font-bold text-slate-800 tracking-tight">Your Completed Tasks</h3>
                     <a href="{% url 'tasks:analytics' %}" title="View Analytics">
                         <i data-lucide="trending-up" class="w-4 h-4 text-emerald-500 hover:text-emerald-700 transition"></i>
                     </a>
@@ -398,7 +391,7 @@
             <div>
                 <label class="block text-xs font-semibold text-slate-600 mb-1">Assign To Member</label>
                 <select name="assignee" class="w-full text-xs px-2.5 py-2 rounded-xl border border-slate-200">
-                    {% for user in users %}
+                    {% for user in all_users %}
                         <option value="{{ user.id }}" {% if user == request.user %}selected{% endif %}>
                             {{ user.get_full_name|default:user.username }} (@{{ user.username }})
                         </option>
