@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Task Management Platform{% endblock %}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- HTMX CDN -->
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'dashboard-bg': '#F1F4FA',
+                        'panel-bg': '#FFFFFF',
+                        'brand-blue': '#2563EB',
+                        'track-blue': '#3B82F6',
+                        'track-purple': '#9333EA',
+                        'track-pink': '#EC4899',
+                        'track-amber': '#F59E0B',
+                    },
+                    boxShadow: {
+                        'soft': '0 10px 25px -5px rgba(148, 163, 184, 0.15), 0 8px 10px -6px rgba(148, 163, 184, 0.1)',
+                        'card': '0 4px 20px -2px rgba(148, 163, 184, 0.12)',
+                        'pill': '0 2px 8px 0 rgba(0, 0, 0, 0.06)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #F0F4FA;
+        }
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background-color: #CBD5E1;
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="text-slate-700 min-h-screen flex antialiased">
+
+    <!-- App Sidebar -->
+    {% include 'tasks/partials/sidebar.html' %}
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        <!-- Top Header Navigation -->
+        {% include 'tasks/partials/header.html' %}
+
+        <!-- Main Page Body -->
+        <main class="flex-1 p-6 lg:p-8 max-w-[1700px] w-full mx-auto">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- Quick New Task Modal -->
+    {% include 'tasks/partials/task_modal.html' %}
+
+    <script>
+        document.body.addEventListener('htmx:configRequest', (event) => {
+            event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+        });
+
+        // Dropdown toggle for task cards (⋮)
+        function toggleCardMenu(menuId) {
+            const menu = document.getElementById(menuId);
+            if (!menu) return;
+            const isHidden = menu.classList.contains('hidden');
+            document.querySelectorAll('[id^="menu-"]').forEach(el => el.classList.add('hidden'));
+            if (isHidden) {
+                menu.classList.remove('hidden');
+            }
+        }
+
+        // Sidebar Collapse / Expand Toggle
+        function toggleSidebar() {
+            const sidebar = document.getElementById('main-sidebar');
+            if (!sidebar) return;
+            const textElements = sidebar.querySelectorAll('.sidebar-text');
+
+            if (sidebar.classList.contains('w-56')) {
+                // Collapse sidebar
+                sidebar.classList.remove('w-56');
+                sidebar.classList.add('w-16');
+                textElements.forEach(el => el.classList.add('hidden'));
+                localStorage.setItem('sidebar_collapsed', 'true');
+            } else {
+                // Expand sidebar
+                sidebar.classList.remove('w-16');
+                sidebar.classList.add('w-56');
+                textElements.forEach(el => el.classList.remove('hidden'));
+                localStorage.setItem('sidebar_collapsed', 'false');
+            }
+        }
+
+        // Restore sidebar state from localStorage on load
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('sidebar_collapsed') === 'true') {
+                const sidebar = document.getElementById('main-sidebar');
+                if (sidebar) {
+                    sidebar.classList.remove('w-56');
+                    sidebar.classList.add('w-16');
+                    sidebar.querySelectorAll('.sidebar-text').forEach(el => el.classList.add('hidden'));
+                }
+            }
+        });
+
+        // Close menus on click outside
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('[onclick^="toggleCardMenu"]') && !event.target.closest('[id^="menu-"]')) {
+                document.querySelectorAll('[id^="menu-"]').forEach(el => el.classList.add('hidden'));
+            }
+            if (!event.target.closest('#user-menu') && !event.target.closest('[onclick*="user-menu"]')) {
+                const userMenu = document.getElementById('user-menu');
+                if (userMenu) userMenu.classList.add('hidden');
+            }
+        });
+
+        lucide.createIcons();
+    </script>
+</body>
+</html>

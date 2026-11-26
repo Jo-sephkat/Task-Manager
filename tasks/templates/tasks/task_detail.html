@@ -1,0 +1,205 @@
+{% extends 'tasks/base.html' %}
+
+{% block title %}{{ task.title }} - Task Details{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <!-- Breadcrumb & Navigation -->
+    <div class="flex items-center justify-between">
+        <a href="{% url 'tasks:task_list' %}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            <span>Back to Tasks</span>
+        </a>
+
+        <form action="{% url 'tasks:delete_task' task.id %}" method="POST" onsubmit="return confirm('Are you sure you want to delete this task?');">
+            {% csrf_token %}
+            <button type="submit" class="text-xs font-semibold text-rose-500 hover:text-rose-700 flex items-center gap-1 transition">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                <span>Delete Task</span>
+            </button>
+        </form>
+    </div>
+
+    <!-- Main Task Editor Form Card -->
+    <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-card border border-slate-100">
+        <form action="{% url 'tasks:task_detail' task.id %}" method="POST" class="space-y-6">
+            {% csrf_token %}
+
+            <!-- Header / Title -->
+            <div class="flex items-start gap-3">
+                <span class="w-8 h-8 rounded-full text-white font-bold text-xs flex items-center justify-center shrink-0 mt-1 shadow-sm"
+                      style="background-color: {{ task.track_color }};">
+                    {{ task.track_code }}
+                </span>
+                <div class="flex-1">
+                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Task Title</label>
+                    <input type="text" name="title" value="{{ task.title }}" required
+                           class="w-full text-lg font-bold text-slate-800 px-3 py-2 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Description</label>
+                <textarea name="description" rows="3" placeholder="Provide details, scope, or notes about this task..."
+                          class="w-full text-xs text-slate-700 px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition leading-relaxed">{{ task.description }}</textarea>
+            </div>
+
+            <!-- Metadata Grid (Status, Priority, Track, Progress) -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Status</label>
+                    <select name="status" class="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 font-semibold text-slate-700">
+                        <option value="draft" {% if task.status == 'draft' %}selected{% endif %}>Draft</option>
+                        <option value="in_progress" {% if task.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                        <option value="editing" {% if task.status == 'editing' %}selected{% endif %}>Editing</option>
+                        <option value="done" {% if task.status == 'done' %}selected{% endif %}>Done</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Priority</label>
+                    <select name="priority" class="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 font-semibold text-slate-700">
+                        <option value="low" {% if task.priority == 'low' %}selected{% endif %}>Low</option>
+                        <option value="medium" {% if task.priority == 'medium' %}selected{% endif %}>Medium</option>
+                        <option value="high" {% if task.priority == 'high' %}selected{% endif %}>High</option>
+                        <option value="urgent" {% if task.priority == 'urgent' %}selected{% endif %}>Urgent</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Track</label>
+                    <select name="track_code" class="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 font-semibold text-slate-700">
+                        <option value="A" {% if task.track_code == 'A' %}selected{% endif %}>Track A</option>
+                        <option value="B" {% if task.track_code == 'B' %}selected{% endif %}>Track B</option>
+                        <option value="C" {% if task.track_code == 'C' %}selected{% endif %}>Track C</option>
+                        <option value="D" {% if task.track_code == 'D' %}selected{% endif %}>Track D</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Progress (%)</label>
+                    <input type="number" name="progress" min="0" max="100" value="{{ task.progress }}"
+                           class="w-full text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 font-bold text-slate-700">
+                </div>
+            </div>
+
+            <!-- Dates -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Start Date</label>
+                    <input type="date" name="start_date" value="{{ task.start_date|date:'Y-m-d' }}"
+                           class="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Due Date</label>
+                    <input type="date" name="due_date" value="{{ task.due_date|date:'Y-m-d' }}"
+                           class="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-700">
+                </div>
+            </div>
+
+            <!-- Assignees Selector -->
+            <div>
+                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Assigned Team Members</label>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    {% for user in all_users %}
+                        <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer p-1.5 rounded-lg hover:bg-white transition">
+                            <input type="checkbox" name="assignees" value="{{ user.id }}" 
+                                   {% if user in task.assignees.all %}checked{% endif %}
+                                   class="rounded text-blue-600 focus:ring-blue-500">
+                            <span class="font-medium truncate">{{ user.get_full_name|default:user.username }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2 border-t border-slate-50">
+                <button type="submit" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-5 py-2.5 rounded-xl shadow-md shadow-blue-500/20 transition">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Subtasks Checklist Section -->
+    <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-card border border-slate-100 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-50 pb-3">
+            <div>
+                <h3 class="text-sm font-bold text-slate-800">Checklist & Subtasks</h3>
+                <p class="text-xs text-slate-400">{{ task.completed_subtasks_count }} of {{ task.total_subtasks_count }} completed</p>
+            </div>
+            <span class="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
+                {{ task.progress }}% Complete
+            </span>
+        </div>
+
+        <!-- Subtask list -->
+        <div class="space-y-2">
+            {% for sub in task.subtasks.all %}
+                <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100/70 border border-slate-100 transition">
+                    <span class="text-xs font-medium text-slate-700 {% if sub.is_completed %}line-through text-slate-400{% endif %}">
+                        {{ sub.title }}
+                    </span>
+                    <form action="{% url 'tasks:toggle_subtask' sub.id %}" method="POST">
+                        {% csrf_token %}
+                        <button type="submit" 
+                                class="w-5 h-5 rounded-md border flex items-center justify-center transition {% if sub.is_completed %}bg-emerald-500 border-emerald-500 text-white{% else %}border-slate-300 hover:border-blue-500 bg-white{% endif %}">
+                            {% if sub.is_completed %}
+                                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                            {% endif %}
+                        </button>
+                    </form>
+                </div>
+            {% empty %}
+                <p class="text-xs text-slate-400 py-3 text-center">No subtasks added yet.</p>
+            {% endfor %}
+        </div>
+
+        <!-- Add Subtask Input -->
+        <form action="{% url 'tasks:add_subtask' task.id %}" method="POST" class="flex items-center gap-2 pt-2">
+            {% csrf_token %}
+            <input type="text" name="title" required placeholder="+ Add a new subtask..." 
+                   class="flex-1 text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700">
+            <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition">
+                Add Subtask
+            </button>
+        </form>
+    </div>
+
+    <!-- Comments & Discussion Section -->
+    <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-card border border-slate-100 space-y-4">
+        <h3 class="text-sm font-bold text-slate-800">Discussion & Activity</h3>
+
+        <div class="space-y-3">
+            {% for comment in task.comments.all %}
+                <div class="flex items-start gap-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
+                    <div class="w-7 h-7 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                        {{ comment.author.username|slice:":2"|upper }}
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-slate-800">{{ comment.author.username }}</span>
+                            <span class="text-[10px] text-slate-400">{{ comment.created_at|timesince }} ago</span>
+                        </div>
+                        <p class="text-xs text-slate-600 mt-1 leading-relaxed">{{ comment.content }}</p>
+                    </div>
+                </div>
+            {% empty %}
+                <p class="text-xs text-slate-400 py-2 text-center">No comments yet. Start the conversation!</p>
+            {% endfor %}
+        </div>
+
+        <form action="{% url 'tasks:add_comment' task.id %}" method="POST" class="pt-2 space-y-2">
+            {% csrf_token %}
+            <textarea name="content" rows="2" required placeholder="Write a comment or status update..." 
+                      class="w-full text-xs px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"></textarea>
+            <div class="flex justify-end">
+                <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded-xl transition">
+                    Post Comment
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

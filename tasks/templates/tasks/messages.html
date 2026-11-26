@@ -1,0 +1,40 @@
+{% extends 'tasks/base.html' %}
+
+{% block title %}Messages & Activity - TaskManager{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Messages & Activity</h1>
+        <p class="text-xs text-slate-400 font-medium">Team discussions and workspace activity feed</p>
+    </div>
+
+    <div class="bg-white rounded-3xl p-6 shadow-card border border-slate-100 max-w-3xl space-y-4">
+        <div class="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+            <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                AM
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-800">Alex Morgan</span>
+                    <span class="text-[10px] text-slate-400">10 mins ago</span>
+                </div>
+                <p class="text-xs text-slate-600 mt-1">Moved <strong>Continuous Integration GitHub workflow</strong> to Done column.</p>
+            </div>
+        </div>
+
+        <div class="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+            <div class="w-8 h-8 rounded-full bg-purple-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                JS
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-800">John Smith</span>
+                    <span class="text-[10px] text-slate-400">1 hour ago</span>
+                </div>
+                <p class="text-xs text-slate-600 mt-1">Updated subtasks on <strong>Implement OAuth & JWT authentication</strong>.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,486 @@
+{% extends 'tasks/base.html' %}
+
+{% block title %}Task Management - Dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Top Header: Title & Info on Left, User Filters & Actions on Right -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-800 tracking-tight">Task Management</h1>
+            <p class="text-xs font-semibold text-slate-400 mt-1 uppercase tracking-widest">
+                {{ org.division }} / {{ org.department }} / {{ org.team }}
+            </p>
+        </div>
+        
+        <!-- Action Buttons aligned on the right -->
+        <div class="flex flex-wrap items-center gap-2.5">
+            <!-- Filter: All Tasks vs My Tasks -->
+            <div class="bg-white border border-slate-200 p-1 rounded-xl shadow-sm flex items-center gap-1">
+                <a href="?filter=all" 
+                   class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 {% if filter_mode != 'mine' %}bg-blue-50 text-blue-600 shadow-xs{% else %}text-slate-500 hover:text-slate-800{% endif %}">
+                    <i data-lucide="users" class="w-3.5 h-3.5"></i>
+                    <span>All Tasks ({{ total_tasks_count }})</span>
+                </a>
+                <a href="?filter=mine" 
+                   class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 {% if filter_mode == 'mine' %}bg-blue-50 text-blue-600 shadow-xs{% else %}text-slate-500 hover:text-slate-800{% endif %}">
+                    <i data-lucide="user-check" class="w-3.5 h-3.5"></i>
+                    <span>Assigned to Me ({{ my_tasks_count }})</span>
+                </a>
+            </div>
+
+            <!-- View Mode Switcher: Table List vs Kanban Board -->
+            <div class="bg-white border border-slate-200 p-1 rounded-xl shadow-sm flex items-center gap-1">
+                <button type="button" 
+                        onclick="switchDashboardView('table')" 
+                        id="view-btn-table"
+                        class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-blue-50 text-blue-600 shadow-xs">
+                    <i data-lucide="list" class="w-3.5 h-3.5"></i>
+                    <span>Table</span>
+                </button>
+                <button type="button" 
+                        onclick="switchDashboardView('board')" 
+                        id="view-btn-board"
+                        class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-50">
+                    <i data-lucide="kanban" class="w-3.5 h-3.5"></i>
+                    <span>Board</span>
+                </button>
+            </div>
+
+            <button onclick="document.getElementById('task-modal').classList.remove('hidden')" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-md shadow-blue-500/20 flex items-center gap-1.5 transition active:scale-95">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>Add Task</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- TOP ROW: Fixed-Height High-Level Workload Health Bar (Never grows, whether 5 or 5,000 tasks) -->
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
+        
+        <!-- Left (8 cols): Fixed Single-Card Workstream Health Summary -->
+        <div class="xl:col-span-8 bg-white rounded-3xl p-6 shadow-card border border-slate-100 flex flex-col justify-between">
+            <div class="space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-800">Project Workstream Distribution</h2>
+                        <p class="text-xs text-slate-400">Total volume and completion across 4 primary workstreams</p>
+                    </div>
+                    <span class="text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-full">
+                        {{ total_tasks_count }} Tasks Total
+                    </span>
+                </div>
+
+                <!-- Combined Proportional Stacked Progress Bar (100% Normalized) -->
+                <div class="space-y-1.5">
+                    <div class="flex items-center justify-between text-xs font-semibold text-slate-500">
+                        <span>Workstream Proportions</span>
+                        <span>100% Workload</span>
+                    </div>
+                    <div class="h-3 w-full bg-slate-100 rounded-full flex overflow-hidden">
+                        {% for cluster in track_clusters %}
+                            {% if cluster.total > 0 %}
+                                <div style="width: {{ cluster.pct_of_total }}%; background-color: {{ cluster.color }};"
+                                     class="transition-all duration-300"
+                                     title="{{ cluster.title }}: {{ cluster.total }} tasks ({{ cluster.pct_of_total }}%)"></div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- 4 Fixed Metric Pillars (Always 4 Columns, Never Expands) -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                    {% for cluster in track_clusters %}
+                        <div class="p-3 rounded-2xl bg-slate-50 border border-slate-100/80">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <span class="w-5 h-5 rounded-full text-white font-bold text-[10px] flex items-center justify-center shrink-0"
+                                      style="background-color: {{ cluster.color }};">
+                                    {{ cluster.code }}
+                                </span>
+                                <span class="text-xs font-extrabold text-slate-700">{{ cluster.progress }}%</span>
+                            </div>
+                            <h4 class="text-xs font-bold text-slate-800 truncate" title="{{ cluster.title }}">{{ cluster.title }}</h4>
+                            <div class="flex items-center justify-between text-[10px] text-slate-400 mt-1">
+                                <span>{{ cluster.done }}/{{ cluster.total }} Done</span>
+                                <span class="font-semibold text-slate-500">{{ cluster.pct_of_total }}% share</span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right (4 cols): Plan / Today's Schedule Card (Fixed Height Alongside) -->
+        <div class="xl:col-span-4 bg-white rounded-3xl p-6 shadow-card border border-slate-100 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center justify-between mb-4 border-b border-slate-50 pb-3">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800 tracking-tight">Today's Focus</h3>
+                        <p class="text-[11px] text-slate-400">Scheduled time blocks</p>
+                    </div>
+                    <span class="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">Schedule</span>
+                </div>
+                <div class="space-y-2.5">
+                    {% for slot in time_slots %}
+                        <div class="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 border border-slate-100">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: {{ slot.color }};"></span>
+                                <span class="text-xs font-semibold text-slate-700 truncate max-w-[140px]">{{ slot.title }}</span>
+                            </div>
+                            <span class="text-[11px] font-bold text-slate-500 shrink-0">
+                                {{ slot.start_time|time:"H:i" }} - {{ slot.end_time|time:"H:i" }}
+                            </span>
+                        </div>
+                    {% empty %}
+                        <p class="text-xs text-slate-400 text-center py-3">No blocks scheduled today.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="pt-3 border-t border-slate-50 flex items-center justify-between text-[11px] text-slate-400">
+                <span>{{ time_slots.count }} sessions</span>
+                <a href="{% url 'tasks:planning' %}" class="text-blue-600 font-semibold hover:text-blue-800">View Roadmap &rarr;</a>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MAIN TASK SECTION: Handles 50 to 5,000+ Tasks Gracefully with Sticky Table or Board -->
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        
+        <!-- Left (8 cols): Scalable Task Table / Kanban View -->
+        <div class="xl:col-span-8">
+
+            <!-- 1. CLEAN ENTERPRISE TABLE VIEW (Scrollable, fixed header, compact) -->
+            <div id="dashboard-table-view" class="bg-white rounded-3xl p-6 shadow-card border border-slate-100 space-y-4">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <div>
+                        <h2 class="text-base font-bold text-slate-800">
+                            {% if filter_mode == 'mine' %}Tasks Assigned to You{% else %}Task Directory{% endif %}
+                        </h2>
+                        <p class="text-xs text-slate-400">Click any row to view complete details, tick checklist items, or add notes</p>
+                    </div>
+                    <span class="text-xs font-bold text-slate-500 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
+                        Showing {{ tasks.count }} Tasks
+                    </span>
+                </div>
+
+                <div class="overflow-x-auto max-h-[580px] custom-scroll">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="sticky top-0 bg-white z-10 shadow-xs">
+                            <tr class="bg-slate-50/90 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                <th class="py-3 px-4">Task Name</th>
+                                <th class="py-3 px-4">Track</th>
+                                <th class="py-3 px-4">Assignee</th>
+                                <th class="py-3 px-4">Status</th>
+                                <th class="py-3 px-4">Progress</th>
+                                <th class="py-3 px-4">Subtasks</th>
+                                <th class="py-3 px-4 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for task in tasks %}
+                                <tr onclick="window.location='{% url 'tasks:task_detail' task.id %}'" 
+                                    class="hover:bg-slate-50/80 cursor-pointer transition group">
+                                    <td class="py-3 px-4 font-semibold text-slate-800 group-hover:text-blue-600">
+                                        {{ task.title }}
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <span class="w-6 h-6 rounded-full inline-flex items-center justify-center font-bold text-white text-[10px]"
+                                              style="background-color: {{ task.track_color }};">
+                                            {{ task.track_code }}
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <div class="flex -space-x-1.5 overflow-hidden">
+                                            {% for member in task.assignees.all %}
+                                                <div class="inline-block h-6 w-6 rounded-full ring-2 ring-white bg-blue-100 text-[9px] font-bold text-blue-700 flex items-center justify-center"
+                                                     title="{{ member.get_full_name|default:member.username }}">
+                                                    {{ member.first_name|default:member.username|slice:":1"|upper }}
+                                                </div>
+                                            {% empty %}
+                                                <span class="text-[11px] text-slate-400 italic">Unassigned</span>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold capitalize
+                                            {% if task.status == 'done' %}bg-emerald-50 text-emerald-600
+                                            {% elif task.status == 'in_progress' %}bg-blue-50 text-blue-600
+                                            {% elif task.status == 'editing' %}bg-purple-50 text-purple-600
+                                            {% else %}bg-slate-100 text-slate-600{% endif %}">
+                                            {{ task.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <div class="w-20 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                            <div class="h-1.5 rounded-full" style="width: {{ task.progress }}%; background-color: {{ task.track_color }};"></div>
+                                        </div>
+                                        <span class="text-[10px] text-slate-400 mt-0.5 block">{{ task.progress }}%</span>
+                                    </td>
+                                    <td class="py-3 px-4 text-slate-500 font-medium">
+                                        {{ task.completed_subtasks_count }}/{{ task.total_subtasks_count }}
+                                    </td>
+                                    <td class="py-3 px-4 text-right">
+                                        <span class="text-xs font-semibold text-blue-600 group-hover:underline">View &rarr;</span>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="7" class="py-8 text-center text-slate-400 text-xs">
+                                        No tasks found for this view.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 2. KANBAN BOARD VIEW (Optionally toggleable) -->
+            <div id="dashboard-board-view" class="hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-4">
+                    <!-- DRAFT -->
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between px-1">
+                            <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Draft</h3>
+                            <span class="text-xs font-bold text-slate-400 bg-white px-2 py-0.5 rounded-full shadow-sm">{{ tasks_draft.count }}</span>
+                        </div>
+                        <div class="space-y-3 min-h-[200px]">
+                            {% for task in tasks_draft %}
+                                {% include 'tasks/partials/task_card.html' with task=task %}
+                            {% empty %}
+                                <div class="border-2 border-dashed border-slate-200 rounded-2xl p-4 text-center text-xs text-slate-400">
+                                    No draft tasks
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- IN PROGRESS -->
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between px-1">
+                            <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">In Progress</h3>
+                            <span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full shadow-sm">{{ tasks_in_progress.count }}</span>
+                        </div>
+                        <div class="space-y-3 min-h-[200px]">
+                            {% for task in tasks_in_progress %}
+                                {% include 'tasks/partials/task_card.html' with task=task %}
+                            {% empty %}
+                                <div class="border-2 border-dashed border-slate-200 rounded-2xl p-4 text-center text-xs text-slate-400">
+                                    No active tasks
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- EDITING -->
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between px-1">
+                            <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Editing</h3>
+                            <span class="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full shadow-sm">{{ tasks_editing.count }}</span>
+                        </div>
+                        <div class="space-y-3 min-h-[200px]">
+                            {% for task in tasks_editing %}
+                                {% include 'tasks/partials/task_card.html' with task=task %}
+                            {% empty %}
+                                <div class="border-2 border-dashed border-slate-200 rounded-2xl p-4 text-center text-xs text-slate-400">
+                                    No tasks in review
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- DONE -->
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between px-1">
+                            <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Done</h3>
+                            <span class="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full shadow-sm">{{ tasks_done.count }}</span>
+                        </div>
+                        <div class="space-y-3 min-h-[200px]">
+                            {% for task in tasks_done %}
+                                {% include 'tasks/partials/task_card.html' with task=task %}
+                            {% empty %}
+                                <div class="border-2 border-dashed border-slate-200 rounded-2xl p-4 text-center text-xs text-slate-400">
+                                    No completed tasks
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right (4 cols): Analytics Mini-Rail (Efficiency + Completed Tasks) -->
+        <div class="xl:col-span-4 space-y-6">
+            
+            <!-- Efficiency Circular Metrics (A, B, C, D) -->
+            <div class="bg-white rounded-3xl p-6 shadow-card border border-slate-100">
+                <div class="flex items-center justify-between mb-5">
+                    <h3 class="text-sm font-bold text-slate-800 tracking-tight">Efficiency</h3>
+                    <span class="text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">Real-time</span>
+                </div>
+                <div class="grid grid-cols-4 gap-2 text-center">
+                    {% for eff in efficiency_stats %}
+                        <div class="flex flex-col items-center">
+                            <div class="relative w-12 h-12 flex items-center justify-center">
+                                <svg class="w-12 h-12 transform -rotate-90">
+                                    <circle cx="24" cy="24" r="19" stroke="#F1F5F9" stroke-width="3.5" fill="transparent" />
+                                    <circle cx="24" cy="24" r="19" stroke="{{ eff.color }}" stroke-width="3.5" fill="transparent"
+                                            stroke-dasharray="119.38"
+                                            stroke-dashoffset="{{ 119.38|add:'-1.19'|floatformat:0 }}"
+                                            style="stroke-dashoffset: calc(119.38 - (119.38 * {{ eff.percentage }}) / 100);"
+                                            stroke-linecap="round" />
+                                </svg>
+                                <span class="absolute text-[11px] font-bold text-slate-700">{{ eff.percentage }}%</span>
+                            </div>
+                            <span class="mt-2 text-xs font-bold text-slate-500">{{ eff.code }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Completed Tasks Real Velocity Bar Chart -->
+            <div class="bg-white rounded-3xl p-6 shadow-card border border-slate-100">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-sm font-bold text-slate-800 tracking-tight">Completed tasks</h3>
+                    <a href="{% url 'tasks:analytics' %}" title="View Analytics">
+                        <i data-lucide="trending-up" class="w-4 h-4 text-emerald-500 hover:text-emerald-700 transition"></i>
+                    </a>
+                </div>
+                <!-- Vertical Bars Graphic -->
+                <div class="flex items-end justify-between h-28 px-3 pb-2 border-b border-slate-100">
+                    {% for stat in completed_stats %}
+                        <div class="flex flex-col items-center gap-1.5 w-1/5">
+                            <div class="w-4 rounded-full transition-all duration-500" 
+                                 style="height: {{ stat.height }}; background-color: {{ stat.color }};"
+                                 title="{{ stat.label }}: {{ stat.value }} completed"></div>
+                        </div>
+                    {% endfor %}
+                </div>
+                <!-- Labels & Values below bars -->
+                <div class="flex items-center justify-between text-center pt-3 px-1">
+                    {% for stat in completed_stats %}
+                        <div class="w-1/5">
+                            <div class="text-xs font-bold text-slate-800">{{ stat.value }}</div>
+                            <div class="text-[10px] text-slate-400 font-semibold">{{ stat.label }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Modal with Assignee Selection -->
+<div id="task-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-3xl p-6 sm:p-7 max-w-lg w-full mx-4 shadow-2xl border border-slate-100 transform transition-all">
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <h3 class="text-base font-bold text-slate-800">Create New Task</h3>
+            <button onclick="document.getElementById('task-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <form action="{% url 'tasks:create_task' %}" method="POST" class="mt-4 space-y-3.5">
+            {% csrf_token %}
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Task Title</label>
+                <input type="text" name="title" required placeholder="e.g. Implement user permissions" 
+                       class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Assign To Member</label>
+                <select name="assignee" class="w-full text-xs px-2.5 py-2 rounded-xl border border-slate-200">
+                    {% for user in users %}
+                        <option value="{{ user.id }}" {% if user == request.user %}selected{% endif %}>
+                            {{ user.get_full_name|default:user.username }} (@{{ user.username }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Description (Optional)</label>
+                <textarea name="description" rows="2" placeholder="Brief summary of the deliverable..." 
+                          class="w-full text-xs px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Track</label>
+                    <select name="track_code" class="w-full text-xs px-2.5 py-2 rounded-xl border border-slate-200">
+                        <option value="A">Track A (Design)</option>
+                        <option value="B" selected>Track B (Backend)</option>
+                        <option value="C">Track C (Database)</option>
+                        <option value="D">Track D (DevOps)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Status</label>
+                    <select name="status" class="w-full text-xs px-2.5 py-2 rounded-xl border border-slate-200">
+                        <option value="draft">Draft</option>
+                        <option value="in_progress" selected>In Progress</option>
+                        <option value="editing">Editing</option>
+                        <option value="done">Done</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Priority</label>
+                    <select name="priority" class="w-full text-xs px-2.5 py-2 rounded-xl border border-slate-200">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Initial Subtasks (One per line)</label>
+                <textarea name="subtasks" rows="2" placeholder="Audit requirements&#10;Write implementation&#10;Peer review" 
+                          class="w-full text-xs px-3.5 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"></textarea>
+            </div>
+
+            <div class="pt-2 flex justify-end gap-2 border-t border-slate-50">
+                <button type="button" onclick="document.getElementById('task-modal').classList.add('hidden')" 
+                        class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition">
+                    Cancel
+                </button>
+                <button type="submit" 
+                        class="px-5 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md shadow-blue-500/20 transition">
+                    Create Task
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function switchDashboardView(mode) {
+        const tableView = document.getElementById('dashboard-table-view');
+        const boardView = document.getElementById('dashboard-board-view');
+        const btnTable = document.getElementById('view-btn-table');
+        const btnBoard = document.getElementById('view-btn-board');
+
+        if (mode === 'table') {
+            tableView.classList.remove('hidden');
+            boardView.classList.add('hidden');
+            btnTable.className = "px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-blue-50 text-blue-600 shadow-xs";
+            btnBoard.className = "px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-50";
+        } else {
+            tableView.classList.add('hidden');
+            boardView.classList.remove('hidden');
+            btnBoard.className = "px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-blue-50 text-blue-600 shadow-xs";
+            btnTable.className = "px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-50";
+        }
+        lucide.createIcons();
+    }
+</script>
+{% endblock %}
